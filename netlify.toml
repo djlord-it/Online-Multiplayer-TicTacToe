@@ -9,6 +9,13 @@
   publish = "dist/public"
 
 [[redirects]]
+  from = "/ws/*"
+  to = "/.netlify/functions/websocket/:splat"
+  status = 200
+  force = true
+  conditions = { Upgrade = "websocket" }
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200 

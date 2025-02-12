@@ -23,9 +23,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   connect: () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Always use port 8000 for WebSocket connections
-    const host = window.location.hostname + ':8000';
-    const wsUrl = `${protocol}//${host}/ws`;
+    let wsUrl;
+    
+    if (import.meta.env.PROD) {
+      // En production, utiliser le même hôte que l'application
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+    } else {
+      // En développement, utiliser le port 8000
+      const host = window.location.hostname + ':8000';
+      wsUrl = `${protocol}//${host}/ws`;
+    }
 
     const socket = new WebSocket(wsUrl);
 

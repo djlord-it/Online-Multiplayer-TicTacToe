@@ -20,19 +20,28 @@ export enum Player {
   O = 'O'
 }
 
-export type GameState = {
+export interface Player {
   id: string;
-  board: (Player | null)[];
-  currentTurn: Player;
-  winner: Player | null;
-  players: string[];
-  hostPlayer: Player | null; // Track the host player to control sharing
+  symbol: 'X' | 'O';
+  connected: boolean;
+}
+
+export interface GameState {
+  id: string;
+  board: (string | null)[];
+  currentPlayer: 'X' | 'O';
+  winner: string | null;
+  player1?: Player;
+  player2?: Player;
+  status: 'waiting' | 'playing' | 'finished' | 'draw';
+  replayRequested?: boolean;
 }
 
 export type GameMessage = 
-  | { type: 'Join', game_id: string }
-  | { type: 'Move', position: number }
-  | { type: 'RequestAIMove' }
-  | { type: 'Update', game: GameState, player: Player }
-  | { type: 'Error', message: string }
-  | { type: 'ConnectionStatus', status: 'connected' | 'disconnected' | 'reconnecting' };
+  | { type: 'Join'; game_id: string }
+  | { type: 'Move'; position: number }
+  | { type: 'Update'; game: GameState; player: Player }
+  | { type: 'Error'; message: string }
+  | { type: 'RequestReplay' }
+  | { type: 'AcceptReplay' }
+  | { type: 'ConnectionStatus'; status: 'connected' | 'disconnected' | 'reconnecting' };
