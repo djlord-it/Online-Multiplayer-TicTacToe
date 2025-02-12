@@ -6,3 +6,5 @@ vite.config.ts.*
 .replit
 .idea
 attached_assets
+# Local Netlify folder
+.netlify
