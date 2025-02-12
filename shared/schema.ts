@@ -15,21 +15,18 @@ export const gameInsertSchema = createInsertSchema(games);
 export type Game = typeof games.$inferSelect;
 export type InsertGame = z.infer<typeof gameInsertSchema>;
 
-export enum Player {
-  X = 'X',
-  O = 'O'
-}
+export type PlayerSymbol = 'X' | 'O';
 
 export interface Player {
   id: string;
-  symbol: 'X' | 'O';
+  symbol: PlayerSymbol;
   connected: boolean;
 }
 
 export interface GameState {
   id: string;
   board: (string | null)[];
-  currentPlayer: 'X' | 'O';
+  currentPlayer: PlayerSymbol;
   winner: string | null;
   player1?: Player;
   player2?: Player;

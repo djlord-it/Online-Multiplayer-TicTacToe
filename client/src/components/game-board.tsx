@@ -1,5 +1,4 @@
 import { useGameStore } from '@/lib/websocket';
-import { Player } from '@shared/schema';
 import { motion } from 'framer-motion';
 
 export function GameBoard() {
@@ -8,7 +7,7 @@ export function GameBoard() {
   if (!gameState) return null;
 
   const handleCellClick = (index: number) => {
-    if (!gameState.board[index] && gameState.currentTurn === currentPlayer && !gameState.winner) {
+    if (!gameState.board[index] && gameState.currentPlayer === currentPlayer?.symbol && !gameState.winner) {
       makeMove(index);
     }
   };
@@ -21,7 +20,7 @@ export function GameBoard() {
           className={`
             w-24 h-24 flex items-center justify-center text-4xl font-bold
             rounded bg-gray-800/50 border border-gray-700
-            ${!cell && gameState.currentTurn === currentPlayer ? 'hover:bg-gray-700/50 hover:border-blue-500 cursor-pointer' : ''}
+            ${!cell && gameState.currentPlayer === currentPlayer?.symbol ? 'hover:bg-gray-700/50 hover:border-blue-500 cursor-pointer' : ''}
             ${cell ? 'cursor-not-allowed' : ''}
           `}
           whileTap={{ scale: cell ? 1 : 0.95 }}
@@ -31,7 +30,7 @@ export function GameBoard() {
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className={cell === Player.X ? 'text-blue-400' : 'text-purple-400'}
+              className={cell === 'X' ? 'text-blue-400' : 'text-purple-400'}
             >
               {cell}
             </motion.span>
