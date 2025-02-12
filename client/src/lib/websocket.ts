@@ -14,6 +14,8 @@ interface GameStore {
 }
 
 const RECONNECT_DELAY = 2000;
+const MAX_RECONNECT_ATTEMPTS = 5;
+let reconnectAttempts = 0;
 
 export const useGameStore = create<GameStore>((set, get) => ({
   socket: null,
@@ -26,48 +28,66 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let wsUrl;
     
     if (import.meta.env.PROD) {
-      // En production, utiliser le même hôte que l'application
-      wsUrl = `${protocol}//${window.location.host}/ws`;
+      wsUrl = `${protocol}//${window.location.host}/.netlify/functions/websocket`;
     } else {
-      // En développement, utiliser le port 8000
       const host = window.location.hostname + ':8000';
       wsUrl = `${protocol}//${host}/ws`;
     }
 
+    console.log('Tentative de connexion à:', wsUrl);
     const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
+      console.log('WebSocket connecté');
       set({ socket, connectionStatus: 'connected' });
+      reconnectAttempts = 0;
       const gameId = new URLSearchParams(window.location.search).get('g');
       socket.send(JSON.stringify({ type: 'Join', game_id: gameId || '' }));
     };
 
     socket.onclose = () => {
+      console.log('WebSocket déconnecté');
       set({ connectionStatus: 'disconnected' });
-      setTimeout(() => {
-        set({ connectionStatus: 'reconnecting' });
-        get().connect();
-      }, RECONNECT_DELAY);
+      
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        setTimeout(() => {
+          console.log(`Tentative de reconnexion ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}`);
+          set({ connectionStatus: 'reconnecting' });
+          reconnectAttempts++;
+          get().connect();
+        }, RECONNECT_DELAY);
+      } else {
+        console.error('Nombre maximum de tentatives de reconnexion atteint');
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('Erreur WebSocket:', error);
     };
 
     socket.onmessage = (event) => {
-      const message = JSON.parse(event.data) as GameMessage;
+      try {
+        const message = JSON.parse(event.data) as GameMessage;
+        console.log('Message reçu:', message);
 
-      switch (message.type) {
-        case 'Update':
-          set({ 
-            gameState: message.game,
-            currentPlayer: message.player
-          });
-          break;
+        switch (message.type) {
+          case 'Update':
+            set({ 
+              gameState: message.game,
+              currentPlayer: message.player
+            });
+            break;
 
-        case 'Error':
-          console.error('Game error:', message.message);
-          break;
+          case 'Error':
+            console.error('Game error:', message.message);
+            break;
 
-        case 'ConnectionStatus':
-          set({ connectionStatus: message.status });
-          break;
+          case 'ConnectionStatus':
+            set({ connectionStatus: message.status });
+            break;
+        }
+      } catch (error) {
+        console.error('Erreur lors du traitement du message:', error);
       }
     };
 

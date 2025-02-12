@@ -1,11 +1,26 @@
-import type { HandlerEvent, HandlerContext } from "@netlify/functions";
+import { HandlerEvent } from "@netlify/functions";
 import { GameState, GameMessage, Player } from '../../shared/schema';
 
+// Déclarer le type correct pour le contexte WebSocket de Netlify
+interface WebSocketContext {
+  websocket: {
+    send: (message: string) => void;
+    connectionId: string;
+  };
+}
+
 const games = new Map<string, GameState>();
-const connections = new Map<string, any>();
+const connections = new Map<string, WebSocketContext['websocket']>();
 const playerGames = new Map<string, string>();
 
-export const handler = async (event: HandlerEvent, context: HandlerContext) => {
+export const handler = async (event: HandlerEvent, context: WebSocketContext) => {
+  // Gérer la déconnexion
+  if (event.requestContext?.eventType === 'DISCONNECT') {
+    const connectionId = event.requestContext.connectionId;
+    handleDisconnection(connectionId);
+    return { statusCode: 200 };
+  }
+
   if (!context.websocket) {
     return {
       statusCode: 400,
@@ -15,8 +30,8 @@ export const handler = async (event: HandlerEvent, context: HandlerContext) => {
 
   const { connectionId } = context.websocket;
 
+  // Nouvelle connexion
   if (event.body === null) {
-    // Nouvelle connexion
     console.log('Nouvelle connexion WebSocket:', connectionId);
     connections.set(connectionId, context.websocket);
     return { statusCode: 200 };
@@ -24,6 +39,7 @@ export const handler = async (event: HandlerEvent, context: HandlerContext) => {
 
   try {
     const message = JSON.parse(event.body) as GameMessage;
+    console.log('Message reçu:', message);
     
     switch (message.type) {
       case 'Join':
@@ -43,9 +59,30 @@ export const handler = async (event: HandlerEvent, context: HandlerContext) => {
     return { statusCode: 200 };
   } catch (error) {
     console.error('Erreur lors du traitement du message:', error);
+    const ws = connections.get(connectionId);
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: 'Error',
+        message: 'Message invalide'
+      }));
+    }
     return { statusCode: 400, body: 'Message invalide' };
   }
 };
+
+function handleDisconnection(connectionId: string) {
+  const gameId = playerGames.get(connectionId);
+  if (gameId) {
+    const game = games.get(gameId);
+    if (game) {
+      if (game.player1?.id === connectionId) game.player1.connected = false;
+      if (game.player2?.id === connectionId) game.player2.connected = false;
+      broadcastGameState(gameId);
+    }
+  }
+  connections.delete(connectionId);
+  playerGames.delete(connectionId);
+}
 
 function handleJoin(connectionId: string, gameId: string = '') {
   let targetGameId = gameId;
@@ -131,12 +168,16 @@ function broadcastGameState(gameId: string) {
     if (player) {
       const ws = connections.get(player.id);
       if (ws) {
-        const message: GameMessage = {
-          type: 'Update',
-          game,
-          player
-        };
-        ws.send(JSON.stringify(message));
+        try {
+          const message: GameMessage = {
+            type: 'Update',
+            game,
+            player
+          };
+          ws.send(JSON.stringify(message));
+        } catch (error) {
+          console.error('Erreur lors de l\'envoi du message:', error);
+        }
       }
     }
   });

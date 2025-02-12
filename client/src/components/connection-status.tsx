@@ -1,32 +1,23 @@
 import { useGameStore } from '@/lib/websocket';
-import { Wifi, WifiOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export function ConnectionStatus() {
-  const connectionStatus = useGameStore(state => state.connectionStatus);
-  
+  const { connectionStatus } = useGameStore();
+
+  if (connectionStatus === 'connected') return null;
+
   return (
-    <div className={cn(
-      "fixed top-4 right-4 flex items-center gap-2 px-3 py-1 rounded-full text-sm transition-colors",
-      connectionStatus === 'connected' ? 'bg-green-500/10 text-green-500' :
-      connectionStatus === 'reconnecting' ? 'bg-yellow-500/10 text-yellow-500' :
-      'bg-red-500/10 text-red-500'
-    )}>
-      {connectionStatus === 'connected' ? (
-        <>
-          <Wifi className="w-4 h-4" />
-          <span>Connected</span>
-        </>
-      ) : connectionStatus === 'reconnecting' ? (
-        <>
-          <Wifi className="w-4 h-4 animate-pulse" />
-          <span>Reconnecting...</span>
-        </>
+    <div className={`
+      fixed top-4 right-4 p-3 rounded-lg shadow-lg
+      ${connectionStatus === 'disconnected' ? 'bg-red-500' : 'bg-yellow-500'}
+      text-white font-medium
+    `}>
+      {connectionStatus === 'disconnected' ? (
+        'Déconnecté du serveur'
       ) : (
-        <>
-          <WifiOff className="w-4 h-4" />
-          <span>Disconnected</span>
-        </>
+        <div className="flex items-center gap-2">
+          <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent" />
+          Tentative de reconnexion...
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,11 @@ var games = /* @__PURE__ */ new Map();
 var connections = /* @__PURE__ */ new Map();
 var playerGames = /* @__PURE__ */ new Map();
 var handler = async (event, context) => {
+  if (event.requestContext?.eventType === "DISCONNECT") {
+    const connectionId2 = event.requestContext.connectionId;
+    handleDisconnection(connectionId2);
+    return { statusCode: 200 };
+  }
   if (!context.websocket) {
     return {
       statusCode: 400,
@@ -17,6 +22,7 @@ var handler = async (event, context) => {
   }
   try {
     const message = JSON.parse(event.body);
+    console.log("Message re\xE7u:", message);
     switch (message.type) {
       case "Join":
         handleJoin(connectionId, message.game_id);
@@ -34,9 +40,29 @@ var handler = async (event, context) => {
     return { statusCode: 200 };
   } catch (error) {
     console.error("Erreur lors du traitement du message:", error);
+    const ws = connections.get(connectionId);
+    if (ws) {
+      ws.send(JSON.stringify({
+        type: "Error",
+        message: "Message invalide"
+      }));
+    }
     return { statusCode: 400, body: "Message invalide" };
   }
 };
+function handleDisconnection(connectionId) {
+  const gameId = playerGames.get(connectionId);
+  if (gameId) {
+    const game = games.get(gameId);
+    if (game) {
+      if (game.player1?.id === connectionId) game.player1.connected = false;
+      if (game.player2?.id === connectionId) game.player2.connected = false;
+      broadcastGameState(gameId);
+    }
+  }
+  connections.delete(connectionId);
+  playerGames.delete(connectionId);
+}
 function handleJoin(connectionId, gameId = "") {
   let targetGameId = gameId;
   if (!targetGameId) {
@@ -104,12 +130,16 @@ function broadcastGameState(gameId) {
     if (player) {
       const ws = connections.get(player.id);
       if (ws) {
-        const message = {
-          type: "Update",
-          game,
-          player
-        };
-        ws.send(JSON.stringify(message));
+        try {
+          const message = {
+            type: "Update",
+            game,
+            player
+          };
+          ws.send(JSON.stringify(message));
+        } catch (error) {
+          console.error("Erreur lors de l'envoi du message:", error);
+        }
       }
     }
   });
